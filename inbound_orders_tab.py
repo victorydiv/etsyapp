@@ -675,6 +675,14 @@ class ReceiveOrderDialog(tk.Toplevel):
         y = parent_y + (parent_height - dialog_height) // 2
         self.geometry(f"+{x}+{y}")
         
+        # Buttons - pack first to reserve space at bottom
+        btn_frame = ttk.Frame(self, padding=10)
+        btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        ttk.Button(btn_frame, text="Receive Into Inventory", 
+                  command=self.receive, width=20).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy, width=12).pack(side=tk.RIGHT)
+        
         # Info
         info_frame = ttk.Frame(self, padding=10)
         info_frame.pack(fill=tk.X)
@@ -695,33 +703,37 @@ class ReceiveOrderDialog(tk.Toplevel):
         items_frame = ttk.LabelFrame(self, text="Items to Receive", padding=10)
         items_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        ttk.Label(items_frame, text="Enter quantities received (leave blank to receive full amount)").pack(anchor=tk.W, pady=5)
+        ttk.Label(items_frame, text="Edit quantities if you received less than ordered (e.g., partial shipment)", 
+                 foreground="blue").pack(anchor=tk.W, pady=5)
         
-        tree_frame = ttk.Frame(items_frame)
-        tree_frame.pack(fill=tk.BOTH, expand=True)
+        # Create a frame with canvas for scrolling
+        canvas_frame = ttk.Frame(items_frame)
+        canvas_frame.pack(fill=tk.BOTH, expand=True)
         
-        scrollbar = ttk.Scrollbar(tree_frame)
+        canvas = tk.Canvas(canvas_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        self.tree = ttk.Treeview(tree_frame,
-                                columns=("SKU", "Title", "Ordered", "Already", "Receive"),
-                                show="headings",
-                                yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.tree.yview)
+        # Header row
+        header_frame = ttk.Frame(scrollable_frame)
+        header_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        self.tree.heading("SKU", text="SKU")
-        self.tree.heading("Title", text="Title")
-        self.tree.heading("Ordered", text="Ordered")
-        self.tree.heading("Already", text="Already Received")
-        self.tree.heading("Receive", text="Receive Now")
-        
-        self.tree.column("SKU", width=100)
-        self.tree.column("Title", width=200)
-        self.tree.column("Ordered", width=80)
-        self.tree.column("Already", width=120)
-        self.tree.column("Receive", width=100)
-        
-        self.tree.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(header_frame, text="SKU", width=12, font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        ttk.Label(header_frame, text="Title", width=30, font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        ttk.Label(header_frame, text="Ordered", width=8, font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        ttk.Label(header_frame, text="Already Recv'd", width=12, font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        ttk.Label(header_frame, text="Receive Now", width=12, font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=2)
         
         # Load items
         self.items = self.manager.get_order_items(order.id)
@@ -729,16 +741,24 @@ class ReceiveOrderDialog(tk.Toplevel):
         
         for item in self.items:
             remaining = item['quantity_remaining']
+            
+            item_frame = ttk.Frame(scrollable_frame)
+            item_frame.pack(fill=tk.X, padx=5, pady=2)
+            
+            ttk.Label(item_frame, text=item['sku'], width=12).pack(side=tk.LEFT, padx=2)
+            ttk.Label(item_frame, text=item['title'][:30], width=30).pack(side=tk.LEFT, padx=2)
+            ttk.Label(item_frame, text=str(item['quantity_ordered']), width=8).pack(side=tk.LEFT, padx=2)
+            ttk.Label(item_frame, text=str(item['quantity_received']), width=12).pack(side=tk.LEFT, padx=2)
+            
+            # Editable quantity field
             var = tk.StringVar(value=str(remaining))
             self.qty_vars[item['item_id']] = var
+            qty_entry = ttk.Entry(item_frame, textvariable=var, width=10)
+            qty_entry.pack(side=tk.LEFT, padx=2)
             
-            self.tree.insert("", tk.END, values=(
-                item['sku'],
-                item['title'],
-                item['quantity_ordered'],
-                item['quantity_received'],
-                remaining
-            ))
+            # Add hint if this is remaining from previous partial receive
+            if item['quantity_received'] > 0:
+                ttk.Label(item_frame, text="(partial)", foreground="orange", font=("Arial", 8)).pack(side=tk.LEFT, padx=5)
         
         # Notes
         notes_frame = ttk.LabelFrame(self, text="Receiving Notes", padding=10)
@@ -746,14 +766,6 @@ class ReceiveOrderDialog(tk.Toplevel):
         
         self.notes_text = tk.Text(notes_frame, height=3)
         self.notes_text.pack(fill=tk.X)
-        
-        # Buttons - fixed at bottom
-        btn_frame = ttk.Frame(self, padding=10)
-        btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        ttk.Button(btn_frame, text="Receive Into Inventory", 
-                  command=self.receive, width=20).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy, width=12).pack(side=tk.RIGHT)
         
         self.wait_window()
     

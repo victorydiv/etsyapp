@@ -1,0 +1,94 @@
+Error migrating table: inventory_transactions
+
+Error: (pymysql.err.IntegrityError) (1452, 'Cannot add or update a child row: a foreign key constraint fails (`etsydata`.`inventory_transactions`, CONSTRAINT `inventory_transactions_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `item_master` (`id`))')
+[SQL: INSERT INTO inventory_transactions (id, item_id, transaction_type, quantity, reference_type, reference_id, notes, performed_by, transaction_date) VALUES (%(id)s, %(item_id)s, %(transaction_type)s, %(quantity)s, %(reference_type)s, %(reference_id)s, %(notes)s, %(performed_by)s, %(transaction_date)s)]
+[parameters: [{'id': 1, 'item_id': 3, 'transaction_type': 'adjustment', 'quantity': 3, 'reference_type': 'adjustment', 'reference_id': None, 'notes': 'initial qty', 'performed_by': None, 'transaction_date': datetime.datetime(2025, 11, 17, 3, 29, 51, 305991)}, {'id': 2, 'item_id': 3, 'transaction_type': 'adjustment', 'quantity': -2, 'reference_type': 'adjustment', 'reference_id': None, 'notes': 'fix to qty', 'performed_by': None, 'transaction_date': datetime.datetime(2025, 11, 17, 3, 33, 58, 574210)}]]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+Traceback (most recent call last):
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\dialects\mysql\mysqldb.py", line 196, in do_executemany
+    rowcount = cursor.executemany(statement, parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 182, in executemany
+    return self._do_execute_many(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 220, in _do_execute_many
+    rows += self.execute(sql + postfix)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.IntegrityError: (1452, 'Cannot add or update a child row: a foreign key constraint fails (`etsydata`.`inventory_transactions`, CONSTRAINT `inventory_transactions_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `item_master` (`id`))')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\database_manager.py", line 158, in migrate_database
+    target_conn.execute(table.insert(), data)
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\sqlalchemy\dialects\mysql\mysqldb.py", line 196, in do_executemany
+    rowcount = cursor.executemany(statement, parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 182, in executemany
+    return self._do_execute_many(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 220, in _do_execute_many
+    rows += self.execute(sql + postfix)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "C:\Users\sean\OneDrive\Documents\etsyapp\.venv\Lib\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.IntegrityError: (pymysql.err.IntegrityError) (1452, 'Cannot add or update a child row: a foreign key constraint fails (`etsydata`.`inventory_transactions`, CONSTRAINT `inventory_transactions_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `item_master` (`id`))')
+[SQL: INSERT INTO inventory_transactions (id, item_id, transaction_type, quantity, reference_type, reference_id, notes, performed_by, transaction_date) VALUES (%(id)s, %(item_id)s, %(transaction_type)s, %(quantity)s, %(reference_type)s, %(reference_id)s, %(notes)s, %(performed_by)s, %(transaction_date)s)]
+[parameters: [{'id': 1, 'item_id': 3, 'transaction_type': 'adjustment', 'quantity': 3, 'reference_type': 'adjustment', 'reference_id': None, 'notes': 'initial qty', 'performed_by': None, 'transaction_date': datetime.datetime(2025, 11, 17, 3, 29, 51, 305991)}, {'id': 2, 'item_id': 3, 'transaction_type': 'adjustment', 'quantity': -2, 'reference_type': 'adjustment', 'reference_id': None, 'notes': 'fix to qty', 'performed_by': None, 'transaction_date': datetime.datetime(2025, 11, 17, 3, 33, 58, 574210)}]]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)

@@ -19,6 +19,7 @@ from document_generator import DocumentGenerator
 from settings_dialog import show_settings_dialog
 from item_master_tab import ItemMasterTab
 from inbound_orders_tab import InboundOrdersTab
+from database_config_dialog import DatabaseConfigDialog
 
 class EtsyAppGUI:
     """Main GUI Application."""
@@ -530,9 +531,17 @@ class EtsyAppGUI:
         order_count = db.query(Order).count()
         db.close()
         
+        # Get current database type
+        from database import get_database_url
+        db_url = get_database_url()
+        db_type = "MySQL" if "mysql" in db_url else "SQLite"
+        
+        ttk.Label(db_frame, text=f"Database Type: {db_type}").pack(anchor='w')
         ttk.Label(db_frame, text=f"Inventory Items: {inv_count}").pack(anchor='w')
         ttk.Label(db_frame, text=f"Orders: {order_count}").pack(anchor='w')
-        ttk.Label(db_frame, text=f"Database: etsy_inventory.db").pack(anchor='w')
+        
+        ttk.Button(db_frame, text="⚙️ Database Configuration", 
+                  command=self.show_database_config).pack(anchor='w', pady=5)
         
         # Output folder
         output_frame = ttk.LabelFrame(settings_frame, text="Output Folder", padding=15)
@@ -1321,6 +1330,10 @@ class EtsyAppGUI:
     def edit_config(self):
         """Open settings dialog for editing configuration."""
         show_settings_dialog(self.root, callback=self.on_settings_saved)
+    
+    def show_database_config(self):
+        """Open database configuration dialog."""
+        DatabaseConfigDialog(self.root)
     
     def on_settings_saved(self):
         """Callback when settings are saved."""

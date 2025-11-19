@@ -6,7 +6,25 @@ from datetime import datetime
 from config import Config
 
 Base = declarative_base()
-engine = create_engine(Config.DATABASE_URL)
+
+def get_database_url():
+    """Get database URL from configuration."""
+    db_type = Config._get_value('DB_TYPE', 'sqlite')
+    
+    if db_type == 'mysql':
+        host = Config._get_value('MYSQL_HOST', 'localhost')
+        port = Config._get_value('MYSQL_PORT', '3306')
+        database = Config._get_value('MYSQL_DATABASE', 'etsy_inventory')
+        user = Config._get_value('MYSQL_USER', 'root')
+        password = Config._get_value('MYSQL_PASSWORD', '')
+        return f'mysql+pymysql://{user}:{password}@{host}:{port}/{database}'
+    else:
+        # Default to SQLite
+        db_path = Config._get_value('SQLITE_PATH', 'etsy_inventory.db')
+        return f'sqlite:///{db_path}'
+
+# Create engine with dynamic configuration
+engine = create_engine(get_database_url())
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class ItemMaster(Base):
@@ -14,13 +32,13 @@ class ItemMaster(Base):
     __tablename__ = 'item_master'
     
     id = Column(Integer, primary_key=True)
-    sku = Column(String, unique=True, index=True, nullable=False)
-    etsy_listing_id = Column(String, unique=True, index=True)
+    sku = Column(String(100), unique=True, index=True, nullable=False)
+    etsy_listing_id = Column(String(50), unique=True, index=True)
     
     # Item Details
-    title = Column(String, nullable=False)
+    title = Column(String(500), nullable=False)
     description = Column(Text)
-    category = Column(String)  # raw material, component, finished good, kit
+    category = Column(String(100))  # raw material, component, finished good, kit
     
     # Pricing
     sell_price = Column(Float)
@@ -29,7 +47,7 @@ class ItemMaster(Base):
     
     # Physical attributes
     weight = Column(Float)  # in ounces
-    dimensions = Column(String)  # LxWxH
+    dimensions = Column(String(100))  # LxWxH
     
     # Inventory tracking
     track_inventory = Column(Boolean, default=True)
@@ -40,16 +58,16 @@ class ItemMaster(Base):
     is_kit = Column(Boolean, default=False)
     
     # Storage
-    storage_location = Column(String)
+    storage_location = Column(String(200))
     
     # Supplier info
-    supplier_name = Column(String)
-    supplier_sku = Column(String)
-    supplier_url = Column(String)
+    supplier_name = Column(String(200))
+    supplier_sku = Column(String(100))
+    supplier_url = Column(String(2000))
     lead_time_days = Column(Integer)
     
     # Image
-    image_path = Column(String)  # Path to item image file
+    image_path = Column(String(500))  # Path to item image file
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -86,17 +104,17 @@ class Customer(Base):
     __tablename__ = 'customers'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, index=True)
-    email = Column(String, index=True)
-    phone = Column(String)
+    name = Column(String(200), nullable=False, index=True)
+    email = Column(String(200), index=True)
+    phone = Column(String(50))
     
     # Address fields
-    address_line1 = Column(String)
-    address_line2 = Column(String)
-    city = Column(String)
-    state = Column(String)
-    postal_code = Column(String)
-    country = Column(String, default='US')
+    address_line1 = Column(String(200))
+    address_line2 = Column(String(200))
+    city = Column(String(100))
+    state = Column(String(50))
+    postal_code = Column(String(20))
+    country = Column(String(50), default='US')
     
     # Notes
     notes = Column(Text)
@@ -135,12 +153,12 @@ class InboundOrder(Base):
     __tablename__ = 'inbound_orders'
     
     id = Column(Integer, primary_key=True)
-    po_number = Column(String, unique=True, index=True)
+    po_number = Column(String(50), unique=True, index=True)
     
     # Supplier info
-    supplier_name = Column(String, nullable=False)
-    supplier_reference = Column(String)  # Their order/invoice number
-    supplier_url = Column(String)  # Link to order on supplier site (Amazon, etc.)
+    supplier_name = Column(String(200), nullable=False)
+    supplier_reference = Column(String(100))  # Their order/invoice number
+    supplier_url = Column(String(2000))  # Link to order on supplier site (Amazon, etc.)
     
     # Order details
     order_date = Column(DateTime, nullable=False)
@@ -148,7 +166,7 @@ class InboundOrder(Base):
     received_date = Column(DateTime)
     
     # Status
-    status = Column(String, default='ordered')  # ordered, in_transit, received, cancelled
+    status = Column(String(50), default='ordered')  # ordered, in_transit, received, cancelled
     
     # Financial
     subtotal = Column(Float)
@@ -160,8 +178,8 @@ class InboundOrder(Base):
     notes = Column(Text)
     
     # Tracking
-    tracking_number = Column(String)
-    carrier = Column(String)
+    tracking_number = Column(String(100))
+    carrier = Column(String(100))
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -189,15 +207,15 @@ class InventoryTransaction(Base):
     id = Column(Integer, primary_key=True)
     item_id = Column(Integer, ForeignKey('item_master.id'), nullable=False)
     
-    transaction_type = Column(String, nullable=False)  # inbound, outbound, adjustment, kit_assembly
+    transaction_type = Column(String(50), nullable=False)  # inbound, outbound, adjustment, kit_assembly
     quantity = Column(Integer, nullable=False)  # Positive for additions, negative for removals
     
     # Reference to source
-    reference_type = Column(String)  # inbound_order, outbound_order, adjustment, kit
+    reference_type = Column(String(50))  # inbound_order, outbound_order, adjustment, kit
     reference_id = Column(Integer)
     
     notes = Column(Text)
-    performed_by = Column(String)
+    performed_by = Column(String(100))
     
     transaction_date = Column(DateTime, default=datetime.utcnow)
     
@@ -209,13 +227,13 @@ class LocalInventory(Base):
     __tablename__ = 'local_inventory'
     
     id = Column(Integer, primary_key=True)
-    etsy_listing_id = Column(String, unique=True, index=True)
-    sku = Column(String, unique=True, index=True)
-    title = Column(String, nullable=False)
+    etsy_listing_id = Column(String(50), unique=True, index=True)
+    sku = Column(String(100), unique=True, index=True)
+    title = Column(String(500), nullable=False)
     quantity = Column(Integer, default=0)
     price = Column(Float)
     cost = Column(Float)
-    location = Column(String)  # Storage location
+    location = Column(String(200))  # Storage location
     last_synced = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -226,14 +244,14 @@ class Order(Base):
     
     id = Column(Integer, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id'), index=True)
-    etsy_order_id = Column(String, unique=True, index=True)
-    buyer_name = Column(String)
-    buyer_email = Column(String)
-    shipping_address = Column(String)
+    etsy_order_id = Column(String(50), unique=True, index=True)
+    buyer_name = Column(String(200))
+    buyer_email = Column(String(200))
+    shipping_address = Column(String(500))
     total_amount = Column(Float)
     order_date = Column(DateTime)
-    status = Column(String)  # pending, packed, shipped, delivered
-    tracking_number = Column(String)
+    status = Column(String(50))  # pending, packed, shipped, delivered
+    tracking_number = Column(String(100))
     packed = Column(Boolean, default=False)
     invoice_generated = Column(Boolean, default=False)
     label_generated = Column(Boolean, default=False)
@@ -249,9 +267,9 @@ class OrderItem(Base):
     
     id = Column(Integer, primary_key=True)
     order_id = Column(Integer, index=True)  # References Order.id
-    etsy_listing_id = Column(String)
-    sku = Column(String)
-    title = Column(String)
+    etsy_listing_id = Column(String(50))
+    sku = Column(String(100))
+    title = Column(String(500))
     quantity = Column(Integer)
     price = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)

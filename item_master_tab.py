@@ -86,6 +86,8 @@ class ItemMasterTab:
         
         # Image preview tooltip
         self.image_tooltip = None
+        self.hover_job = None  # Track pending tooltip display
+        self.last_hover_item = None  # Track which item we're hovering over
         self.tree.bind('<Motion>', self.on_tree_motion)
         self.tree.bind('<Leave>', lambda e: self.hide_image_tooltip())
         
@@ -380,36 +382,47 @@ class ItemMasterTab:
         # Get the item under the cursor
         item_id = self.tree.identify_row(event.y)
         
+        # Cancel any pending tooltip display
+        if self.hover_job:
+            self.tree.after_cancel(self.hover_job)
+            self.hover_job = None
+        
         if item_id:
+            # Check if we moved to a different item
+            if self.last_hover_item != item_id:
+                # Reset when moving to a new item
+                self.last_hover_item = item_id
+                self.hide_image_tooltip()
+            
             # Get item data
             try:
                 item_db_id = int(item_id)
                 item = self.manager.get_item_by_id(item_db_id)
                 
-                # Only show tooltip if item has an image and cursor hasn't moved much
+                # Only show tooltip if item has an image
                 if item and item.image_path and os.path.exists(item.image_path):
-                    # Show tooltip after a brief delay (simulated by checking position)
-                    if self.image_tooltip is None or self.image_tooltip.item_id != item_db_id:
-                        self.hide_image_tooltip()
-                        # Use after() to create a slight delay before showing
-                        self.tree.after(500, lambda: self.show_image_tooltip(event, item_db_id, item.image_path))
+                    # Schedule tooltip to show after 3 seconds (3000ms)
+                    self.hover_job = self.tree.after(3000, 
+                        lambda: self.show_image_tooltip(item_db_id, item.image_path))
                 else:
                     self.hide_image_tooltip()
             except (ValueError, AttributeError):
                 self.hide_image_tooltip()
         else:
+            self.last_hover_item = None
             self.hide_image_tooltip()
     
-    def show_image_tooltip(self, event, item_id, image_path):
+    def show_image_tooltip(self, item_id, image_path):
         """Show image tooltip at cursor position."""
-        # Check if we should still show (mouse might have moved)
-        current_item = self.tree.identify_row(event.y)
-        if current_item != str(item_id):
+        # Verify we're still hovering over the same item
+        if self.last_hover_item != str(item_id):
             return
         
         # Don't show if already showing for this item
-        if self.image_tooltip and self.image_tooltip.winfo_exists() and self.image_tooltip.item_id == item_id:
-            return
+        if self.image_tooltip and hasattr(self.image_tooltip, 'winfo_exists'):
+            if self.image_tooltip.winfo_exists() and hasattr(self.image_tooltip, 'item_id'):
+                if self.image_tooltip.item_id == item_id:
+                    return
         
         try:
             from PIL import Image, ImageTk
@@ -419,9 +432,9 @@ class ItemMasterTab:
             self.image_tooltip.wm_overrideredirect(True)
             self.image_tooltip.item_id = item_id
             
-            # Position near cursor
-            x = event.x_root + 15
-            y = event.y_root + 10
+            # Get current mouse position
+            x = self.tree.winfo_pointerx() + 15
+            y = self.tree.winfo_pointery() + 10
             self.image_tooltip.wm_geometry(f"+{x}+{y}")
             
             # Load and display image
@@ -441,6 +454,12 @@ class ItemMasterTab:
     
     def hide_image_tooltip(self):
         """Hide the image tooltip."""
+        # Cancel any pending tooltip display
+        if self.hover_job:
+            self.tree.after_cancel(self.hover_job)
+            self.hover_job = None
+        
+        # Hide the tooltip if it's showing
         if self.image_tooltip:
             try:
                 self.image_tooltip.destroy()
