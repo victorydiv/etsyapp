@@ -19,6 +19,44 @@ class DocumentGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.styles = getSampleStyleSheet()
         
+    def _add_logo_header(self, story, title_text: str):
+        """Add logo and title to the document."""
+        # Get logo path from Config class method
+        logo_path = Config.get_logo_path()
+        
+        if logo_path and logo_path.exists():
+            # Create a table with logo on left, title on right
+            logo_img = Image(str(logo_path), width=1.5*inch, height=1.5*inch, kind='proportional')
+            
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=self.styles['Heading1'],
+                fontSize=24,
+                textColor=colors.HexColor('#2C3E50'),
+                alignment=TA_CENTER
+            )
+            title_para = Paragraph(title_text, title_style)
+            
+            header_table = Table([[logo_img, title_para]], colWidths=[2*inch, 5*inch])
+            header_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+            ]))
+            story.append(header_table)
+        else:
+            # No logo, just title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=self.styles['Heading1'],
+                fontSize=24,
+                textColor=colors.HexColor('#2C3E50'),
+                spaceAfter=30,
+                alignment=TA_CENTER
+            )
+            story.append(Paragraph(title_text, title_style))
+        
+        story.append(Spacer(1, 0.3*inch))
+        
     def _get_output_path(self, doc_type: str, order_id: str) -> Path:
         """Get the output path for a document."""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -31,17 +69,8 @@ class DocumentGenerator:
         doc = SimpleDocTemplate(str(output_path), pagesize=letter)
         story = []
         
-        # Title
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=self.styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#2C3E50'),
-            spaceAfter=30,
-            alignment=TA_CENTER
-        )
-        story.append(Paragraph("PACKING LIST", title_style))
-        story.append(Spacer(1, 0.3*inch))
+        # Title with logo
+        self._add_logo_header(story, "PACKING LIST")
         
         # Order Information
         info_style = self.styles['Normal']
@@ -114,17 +143,8 @@ class DocumentGenerator:
         doc = SimpleDocTemplate(str(output_path), pagesize=letter)
         story = []
         
-        # Title
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=self.styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#2C3E50'),
-            spaceAfter=20,
-            alignment=TA_CENTER
-        )
-        story.append(Paragraph("INVOICE", title_style))
-        story.append(Spacer(1, 0.2*inch))
+        # Title with logo
+        self._add_logo_header(story, "INVOICE")
         
         # Shop Info (if provided)
         if shop_info:

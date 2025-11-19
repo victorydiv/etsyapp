@@ -89,6 +89,53 @@ class OrderManager:
             if db:
                 db.close()
     
+    def create_manual_order(self, order_id: str, buyer_name: str, shipping_address: str,
+                           total_amount: float, order_date: datetime, items: List[Dict],
+                           buyer_email: str = None, customer_id: int = None, db: Session = None) -> Order:
+        """Create a manual order (non-Etsy)."""
+        if db is None:
+            db = get_db()
+        
+        try:
+            # Create order
+            order = Order(
+                etsy_order_id=order_id,
+                customer_id=customer_id,
+                buyer_name=buyer_name,
+                buyer_email=buyer_email,
+                shipping_address=shipping_address,
+                total_amount=total_amount,
+                order_date=order_date,
+                status='pending',
+                packed=False,
+                invoice_generated=False,
+                label_generated=False
+            )
+            db.add(order)
+            db.flush()  # Get the order ID
+            
+            # Add order items
+            for item_data in items:
+                order_item = OrderItem(
+                    order_id=order.id,
+                    etsy_listing_id=None,
+                    sku=item_data['sku'],
+                    title=item_data['title'],
+                    quantity=item_data['quantity'],
+                    price=item_data['price']
+                )
+                db.add(order_item)
+            
+            db.commit()
+            db.refresh(order)
+            return order
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            if db:
+                db.close()
+    
     def get_orders(self, status: Optional[str] = None, db: Session = None) -> List[Dict]:
         """Get orders, optionally filtered by status."""
         if db is None:
@@ -137,21 +184,102 @@ class OrderManager:
                 db.close()
     
     def mark_order_packed(self, order_id: int, db: Session = None) -> bool:
-        """Mark an order as packed."""
+        """Mark an order as packed and deduct inventory."""
+        close_db = False
         if db is None:
             db = get_db()
+            close_db = True
         
         try:
             order = db.query(Order).filter(Order.id == order_id).first()
             if not order:
                 return False
             
+            # Get order items
+            order_items = db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
+            
+            if not order_items:
+                # No items, just mark as packed
+                order.packed = True
+                order.status = 'packed'
+                db.commit()
+                return True
+            
+            # Check inventory availability for all items
+            from database import ItemMaster, Inventory, InventoryTransaction
+            insufficient_items = []
+            
+            for order_item in order_items:
+                if not order_item.sku:
+                    continue
+                    
+                # Find the item in ItemMaster
+                item = db.query(ItemMaster).filter(ItemMaster.sku == order_item.sku).first()
+                if not item:
+                    insufficient_items.append(f"{order_item.title} (SKU: {order_item.sku}) - Item not found in system")
+                    continue
+                
+                # Check inventory
+                inventory = db.query(Inventory).filter(Inventory.item_id == item.id).first()
+                if not inventory:
+                    insufficient_items.append(f"{order_item.title} (SKU: {order_item.sku}) - No inventory record")
+                    continue
+                
+                available = inventory.quantity_available or 0
+                required = order_item.quantity
+                
+                if available < required:
+                    insufficient_items.append(
+                        f"{order_item.title} (SKU: {order_item.sku}) - Need {required}, have {available}"
+                    )
+            
+            # If any items are insufficient, return error message
+            if insufficient_items:
+                error_msg = "Insufficient inventory:\n" + "\n".join(insufficient_items)
+                raise ValueError(error_msg)
+            
+            # All items have sufficient inventory, deduct them
+            for order_item in order_items:
+                if not order_item.sku:
+                    continue
+                    
+                item = db.query(ItemMaster).filter(ItemMaster.sku == order_item.sku).first()
+                if not item:
+                    continue
+                
+                inventory = db.query(Inventory).filter(Inventory.item_id == item.id).first()
+                if not inventory:
+                    continue
+                
+                # Deduct inventory
+                inventory.quantity_on_hand -= order_item.quantity
+                inventory.quantity_available = inventory.quantity_on_hand - (inventory.quantity_reserved or 0)
+                
+                # Create inventory transaction
+                transaction = InventoryTransaction(
+                    item_id=item.id,
+                    transaction_type='sale',
+                    quantity=-order_item.quantity,
+                    reference_type='order',
+                    reference_id=str(order.etsy_order_id),
+                    notes=f"Order packed: {order.etsy_order_id}"
+                )
+                db.add(transaction)
+            
+            # Mark order as packed
             order.packed = True
             order.status = 'packed'
             db.commit()
             return True
+            
+        except ValueError:
+            # Re-raise ValueError for insufficient inventory
+            raise
+        except Exception as e:
+            db.rollback()
+            raise Exception(f"Failed to mark order as packed: {str(e)}")
         finally:
-            if db:
+            if close_db and db:
                 db.close()
     
     def update_tracking(self, order_id: int, tracking_number: str, 
@@ -221,6 +349,11 @@ class OrderManager:
                 raise ValueError(f"Order {order_id} not found")
             
             items = self.get_order_items(order_id, db)
+            
+            # Get shop info from Config if not provided
+            if shop_info is None:
+                from config import Config
+                shop_info = Config.get_shop_info()
             
             order_data = {
                 'order_id': order.etsy_order_id,

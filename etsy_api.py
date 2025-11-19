@@ -98,3 +98,31 @@ class EtsyAPIClient:
         """Get shop information."""
         endpoint = f"shops/{self.shop_id}"
         return self._make_request('GET', endpoint)
+    
+    def get_shop_info(self) -> Dict:
+        """Get formatted shop information for documents."""
+        shop_data = self.get_shop()
+        
+        # Extract shop name
+        shop_name = shop_data.get('shop_name', '')
+        
+        # Build address from components
+        address_parts = []
+        if 'street' in shop_data and shop_data['street']:
+            address_parts.append(shop_data['street'])
+        if 'city' in shop_data and shop_data['city']:
+            city_line = shop_data['city']
+            if 'state' in shop_data and shop_data['state']:
+                city_line += f", {shop_data['state']}"
+            if 'zip' in shop_data and shop_data['zip']:
+                city_line += f" {shop_data['zip']}"
+            address_parts.append(city_line)
+        if 'country_iso' in shop_data and shop_data['country_iso']:
+            address_parts.append(shop_data['country_iso'])
+        
+        address = '\n'.join(address_parts)
+        
+        return {
+            'shop_name': shop_name,
+            'address': address
+        }

@@ -1,4 +1,4 @@
-# Etsy Shop Management App
+# EMS - Etsy Management System
 
 A comprehensive Python application for managing your Etsy shop, including inventory synchronization, order management, and automated document generation (packing lists, invoices, and shipping labels).
 
