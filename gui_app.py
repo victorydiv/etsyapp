@@ -20,6 +20,7 @@ from settings_dialog import show_settings_dialog
 from item_master_tab import ItemMasterTab
 from inbound_orders_tab import InboundOrdersTab
 from database_config_dialog import DatabaseConfigDialog
+from item_master_manager import ItemMasterManager
 
 class EtsyAppGUI:
     """Main GUI Application."""
@@ -570,6 +571,11 @@ class EtsyAppGUI:
         # Clear existing items
         for item in self.inventory_tree.get_children():
             self.inventory_tree.delete(item)
+        
+        # IMPORTANT: Close and recreate the manager to get a fresh database session
+        # This ensures we see the latest data after receiving orders
+        self.inv_manager.close()
+        self.inv_manager = ItemMasterManager()
         
         # Get category filter
         category = None if self.inv_category_var.get() == "all" else self.inv_category_var.get()

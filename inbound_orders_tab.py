@@ -284,6 +284,10 @@ class InboundOrdersTab:
         if dialog.result:
             self.load_orders()
             self.on_order_select(None)
+            
+            # Refresh inventory levels tab to show updated quantities
+            self.app.load_inventory_levels()
+            
             messagebox.showinfo("Success", "Order received into inventory")
     
     def cancel_order(self):

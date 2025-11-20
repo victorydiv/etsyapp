@@ -474,9 +474,12 @@ class ItemMasterTab:
             return
         
         item_id = int(selection[0])
-        item = self.manager.get_item_by_id(item_id)
+        # Create fresh manager to get latest transactions from database
+        from item_master_manager import ItemMasterManager
+        fresh_manager = ItemMasterManager()
+        item = fresh_manager.get_item_by_id(item_id)
         
-        TransactionHistoryDialog(self.app.root, self.manager, item)
+        TransactionHistoryDialog(self.app.root, fresh_manager, item)
 
 
 class ItemMasterDialog(tk.Toplevel):

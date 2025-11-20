@@ -254,29 +254,52 @@ class InboundOrderManager:
         for order_item in order_items:
             # Determine quantity to receive
             if received_items and order_item.item_id in received_items:
-                qty_received = received_items[order_item.item_id]
+                qty_to_receive = received_items[order_item.item_id]
             else:
-                qty_received = order_item.quantity_ordered
+                # Default: receive remaining quantity
+                qty_to_receive = order_item.quantity_ordered - order_item.quantity_received
             
-            if qty_received > 0:
-                # Update order item
-                order_item.quantity_received += qty_received
+            if qty_to_receive > 0:
+                # Check if transaction already exists (idempotency check)
+                # Look for any existing transaction for this order+item to prevent duplicates
+                existing_transaction = self.db.query(InventoryTransaction).filter(
+                    InventoryTransaction.reference_type == 'inbound_order',
+                    InventoryTransaction.reference_id == order_id,
+                    InventoryTransaction.item_id == order_item.item_id
+                ).first()
                 
-                # Update inventory
+                if existing_transaction:
+                    # Already processed, skip to avoid double-counting
+                    continue
+                
+                # Update order item
+                order_item.quantity_received += qty_to_receive
+                
+                # Update inventory (create if doesn't exist)
                 inventory = self.db.query(Inventory).filter(
                     Inventory.item_id == order_item.item_id
                 ).first()
                 
                 if inventory:
-                    inventory.quantity_on_hand += qty_received
+                    inventory.quantity_on_hand += qty_to_receive
                     inventory.quantity_available = inventory.quantity_on_hand - inventory.quantity_reserved
                     inventory.last_updated = datetime.utcnow()
+                else:
+                    # Create new inventory record
+                    inventory = Inventory(
+                        item_id=order_item.item_id,
+                        quantity_on_hand=qty_to_receive,
+                        quantity_reserved=0,
+                        quantity_available=qty_to_receive,
+                        last_updated=datetime.utcnow()
+                    )
+                    self.db.add(inventory)
                 
                 # Log transaction
                 transaction = InventoryTransaction(
                     item_id=order_item.item_id,
                     transaction_type='inbound',
-                    quantity=qty_received,
+                    quantity=qty_to_receive,
                     reference_type='inbound_order',
                     reference_id=order_id,
                     notes=f"Received from PO {order.po_number}. {notes or ''}".strip()
